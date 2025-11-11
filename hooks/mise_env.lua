@@ -32,9 +32,11 @@ local function read_secrets_file(exec, path, kvs)
 		return {}
 	end
 
-	local encoded = json.decode(data)
-	for key, value in pairs(encoded) do
-		kvs[key] = cmd.exec(exec() .. " -d -s '" .. value .. "'")
+	data = cmd.exec("echo '" .. data:gsub(": \"", ": E\""):gsub("%s+", "") .. "' | " .. exec() .. " -t jsonc")
+
+	local values = json.decode(data:gsub("\\", "\\\\"))
+	for key, value in pairs(values) do
+		kvs[key] = value
 	end
 end
 
