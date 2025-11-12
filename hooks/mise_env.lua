@@ -27,14 +27,15 @@ local function find_ssh_crypt()
 end
 
 local function read_secrets_file(exec, path, kvs)
-	local ok, data = pcall(file.read, path)
+	local ok, _ = pcall(cmd.exec, "stat " .. path)
 	if not ok then
 		return {}
 	end
 
-	data = cmd.exec("echo '" .. data:gsub(": \"", ": E\""):gsub("%s+", "") .. "' | " .. exec() .. " -t jsonc")
+	local data =
+		cmd.exec([[cat ]] .. path .. [[ | sed -e 's/: "/: E"/' | ]] .. exec() .. [[ -t jsonc | sed -e 's/\\/\\\\/']])
 
-	local values = json.decode(data:gsub("\\", "\\\\"))
+	local values = json.decode(data)
 	for key, value in pairs(values) do
 		kvs[key] = value
 	end
