@@ -4,31 +4,34 @@ local json = require("json")
 local strings = require("strings")
 
 local function find_ssh_crypt()
-	local ok, path = pcall(cmd.exec, "which ssh-crypt")
-	if ok then
-		return strings.trim_space(path)
-	end
-
 	local home = os.getenv("HOME")
-	local installs = file.join_path(home, ".local/share/mise/installs")
-	path = file.join_path(installs, "pipx-ssh-crypt/latest/bin/ssh-crypt")
-	ok, _ = pcall(cmd.exec, "stat " .. path)
-	if ok then
+	local data_dir = os.getenv("MISE_DATA_DIR") or file.join_path(home, ".local/share/mise")
+	local installs = file.join_path(data_dir, "installs")
+	local path = file.join_path(installs, "pipx-ssh-crypt/latest/bin/ssh-crypt")
+	if file.exists(path) then
 		return path
 	end
 
 	local find = "find " .. installs .. " -name ssh-crypt -type f -perm +111"
 	local exec = strings.split(cmd.exec(find), "\n")
-	if #exec == 1 then
-		error("Unable to find ssh-crypt executable")
+	if #exec > 1 then
+		return exec[#exec - 1]
 	end
 
-	return exec[#exec - 1]
+	local ok, path = pcall(cmd.exec, "which ssh-crypt")
+	if ok then
+		path = strings.trim_space(path)
+		local shims = file.join_path(data_dir, "shims") .. "/"
+		if not strings.has_prefix(path, shims) then
+			return path
+		end
+	end
+
+	error("Unable to find ssh-crypt executable outside the mise shims directory")
 end
 
 local function read_secrets_file(exec, path, kvs)
-	local ok, _ = pcall(cmd.exec, "stat " .. path)
-	if not ok then
+	if not file.exists(path) then
 		return {}
 	end
 
